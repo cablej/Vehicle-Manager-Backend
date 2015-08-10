@@ -40,7 +40,13 @@ switch ($action) {
 		$owner = $mysqli->real_escape_string($_POST["owner"]);
 		$startTime = $_POST["startTime"];
 		$endTime = $_POST["endTime"];
-		$school = $mysqli->real_escape_string($_POST["school"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
 		if(!isValidTimeStamp($startTime) || !isValidTimeStamp($endTime)) {
 			error("times are not valid");
 		}
@@ -81,7 +87,13 @@ switch ($action) {
 		break;
 	case "AddVehicle":
 		$vehicleName = $mysqli->real_escape_string($_POST["vehicleName"]);
-		$school = $mysqli->real_escape_string($_POST["school"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
 		$result = addVehicle($school, $vehicleName, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
@@ -90,7 +102,13 @@ switch ($action) {
 		$owner = $mysqli->real_escape_string($_POST["owner"]);
 		$startTime = $_POST["startTime"];
 		$endTime = $_POST["endTime"];
-		$school = $mysqli->real_escape_string($_POST["school"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
 		if(!isValidTimeStamp($startTime) || !isValidTimeStamp($endTime)) {
 			error("times are not valid");
 		}
@@ -99,7 +117,13 @@ switch ($action) {
 		break;
 	case "RemoveVehicle":
 		$vehicleName = $mysqli->real_escape_string($_POST["vehicleName"]);
-		$school = $mysqli->real_escape_string($_POST["school"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
 		$result = removeVehicle($school, $vehicleName, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
@@ -109,8 +133,7 @@ switch ($action) {
 		if(!preg_match($ck_username, $school) || !preg_match($ck_password, $newPass)) {
 		   error("username/password contains illegal characters");
 		}
-		$key = signIn($school, $newPass, $mysqli);
-		$returnValue = ["key" => $key, "school" => $school];
+		$returnValue = signIn($school, $newPass, $mysqli);
 		echo(json_encode($returnValue, JSON_UNESCAPED_SLASHES));
 		break;
 	case "SignUp":
@@ -120,8 +143,7 @@ switch ($action) {
 		if(!preg_match($ck_username, $school) || !preg_match($ck_email, $email) || !preg_match($ck_password, $newPass)) {
 			error("school/password/email contains illegal characters");
 		}
-		$key = createUser($school, $email, $newPass, $mysqli);
-		$returnValue = ["key" => $key, "school" => $school];
+		$returnValue = createUser($school, $email, $newPass, $mysqli);
 
 		echo(json_encode($returnValue, JSON_UNESCAPED_SLASHES));
 		break;
@@ -133,6 +155,58 @@ switch ($action) {
 		$school = getSchool($key, $mysqli);
 		$result = getRequests($school, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "ProcessRequest":
+		$timestamp = $_POST["timestamp"];
+		if(!isValidTimeStamp($timestamp)) {
+			error("timestamp is not valid");
+		}
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		
+		$type = $_POST["type"];
+		if($type != "approve" && $type != "deny") {
+			error("type is not valid");
+		}
+		
+		$school = getSchool($key, $mysqli);
+		$result = processRequest($school, $timestamp, $type, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "ChangePassword":
+		$oldPassword = $_POST['oldPassword'];
+		$newPassword = $_POST['newPassword'];
+		if(!preg_match($ck_password, $oldPassword) || !preg_match($ck_password, $newPassword)) {
+			error("password contains illegal characters");
+		}
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		$returnValue = signIn($school, $oldPassword, $mysqli);
+		
+		changePassword($school, $newPassword, $mysqli);
+		echo(json_encode($returnValue, JSON_UNESCAPED_SLASHES));
+		break;
+	case "ChangeEmail":
+		$newEmail = $_POST['newEmail'];
+		
+		$password = $_POST['password'];
+		if(!preg_match($ck_password, $password)) {
+			error("password contains illegal characters");
+		}
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		$returnValue = signIn($school, $password, $mysqli);
+
+		changeEmail($school, $newEmail, $mysqli);
+		echo(json_encode($returnValue, JSON_UNESCAPED_SLASHES));
 		break;
 }
 

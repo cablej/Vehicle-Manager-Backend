@@ -53,7 +53,7 @@ function signIn($school, $password, $mysqli) {
 			error("could not log in");
 		}
 		
-		return $key;
+		return ["key" => $key, "school" => $row["name"]];
 		
 	} else {
 		error("wrong username/password");
@@ -79,22 +79,51 @@ function createUser($school, $email, $newPass, $mysqli) {
 	}
 }
 
+function changePassword($school, $newPassword, $mysqli) {
+	$hashedPass = cryptPass($newPassword);
+	$sql = "UPDATE `Schools` SET `password` = '$hashedPass' WHERE name = '$school'";
+	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
+function changeEmail($school, $newEmail, $mysqli) {
+	$sql = "UPDATE `Schools` SET `email` = '$newEmail' WHERE name = '$school'";
+	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
 function getVehiclesReserved($school, $mysqli, $startTime = 0, $endTime = 2147483648 /*max time*/) {
 	if($startTime == 0) $startTime = time(); //only get future reservations
-	$sql = "SELECT * FROM `Reservations` WHERE `school` = '$school' AND `startDateTime` >= $startTime AND `endDateTime` <= $endTime";
+	$sql = "SELECT * FROM `Reservations` WHERE `school` = '$school' AND `startDateTime` >= $startTime AND `endDateTime` <= $endTime ORDER BY `startDateTime`";
 	return query($sql, $mysqli);
 }
 
 function getRequests($school, $mysqli, $startTime = 0) {
 	if($startTime == 0) $startTime = time(); //only get future requests
-	$sql = "SELECT * FROM `Requests` WHERE `school` = '$school' AND `startDateTime` >= $startTime";
+	$sql = "SELECT * FROM `Requests` WHERE `active` = 1 AND `school` = '$school' AND `startDateTime` >= $startTime";
 	return query($sql, $mysqli);
 }
 
 function reserveVehicle($school, $vehicleName, $owner, $startTime, $endTime, $mysqli) {
+	if($endTime <= $startTime) error("End time is before start time.");
+	if(!vehicleExists($vehicleName, $school, $mysqli)) error("Vehicle does not exist (It is case sensitive).");
 	if(isVehicleReserved($school, $vehicleName, $startTime, $endTime, $mysqli)) error("This vehicle is already reserved.");
 	$sql = "INSERT INTO `Reservations`(`vehicleName`, `owner`, `startDateTime`, `endDateTime`, `school`) VALUES ('$vehicleName','$owner', '$startTime', '$endTime', '$school')";
 	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
+function processRequest($school, $timestamp, $type, $mysqli) {
+	$sql = "SELECT * FROM `Requests` WHERE `school` = '$school' AND `timestamp` = '$timestamp'";
+	$result = query_one($sql, $mysqli);
+	if($type == "approve") {
+		if(isVehicleReserved($school, $result["vehicleName"], $result["startDateTime"], $result["endDateTime"], $mysqli)) error("This vehicle is already reserved.");
+	}
+	$sql = "UPDATE `Requests` SET `active` = 0 WHERE `school` = '$school' AND `timestamp` = '$timestamp'";
+	query($sql, $mysqli);
+	if($type == "approve") {
+		reserveVehicle($result["school"], $result["vehicleName"], $result["user"], $result["startDateTime"], $result["endDateTime"], $mysqli);
+	}
 	return ["success" => "true"];
 }
 
@@ -172,6 +201,12 @@ function getVehicles($school, $mysqli) {
 	return query($sql, $mysqli);
 }
 
+function vehicleExists($vehicleName, $school, $mysqli) {
+	$sql = "SELECT * FROM `Vehicles` WHERE `school` = '$school' AND `vehicleName` = '$vehicleName'";
+	$result = query($sql, $mysqli);
+	return count($result) > 0;
+}
+
 //a generic query, returns an associative array
 function query($sql, $mysqli) {
 	$resultArray = [];
@@ -182,7 +217,7 @@ function query($sql, $mysqli) {
 			}
 		}
 	} else {
-		error("could not query: $sql");
+		error("could not query");
 	}
 	return $resultArray;
 }
@@ -197,7 +232,7 @@ function query_one($sql, $mysqli) {
 			error("could not query");
 		}
 	} else {
-		error("could not query1: $sql");
+		error("could not query");
 	}
 }
 
