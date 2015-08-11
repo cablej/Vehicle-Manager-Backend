@@ -25,6 +25,11 @@ switch ($action) {
 		$result = getVehiclesReserved($school, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
+	case "GetVehicleHistory":
+		$school = $mysqli->real_escape_string($_POST["school"]);
+		$result = getVehiclesReserved($school, $mysqli, 0);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
 	case "GetVehiclesReservedAtTime":
 		$startTime = $_POST["startTime"];
 		$endTime = $_POST["endTime"];
@@ -66,6 +71,18 @@ switch ($action) {
 		if(!isValidTimeStamp($startTime) || !isValidTimeStamp($endTime)) {
 			error("times are not valid $startTime, $endTime");
 		}
+		
+		if(isSet($_POST["vehicles"])) {
+			$vehicles = $_POST["vehicles"];
+			$adjVehicles = [];
+			foreach($vehicles as $vehicle) {
+				$adjVehicles[] = $mysqli->real_escape_string($vehicle);
+			}
+			$result = submitRequestMultipleVehicles($owner, $email, $school, $adjVehicles, $startTime, $endTime, $mysqli);
+			echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+			break;
+		}
+		
 		$result = submitRequest($owner, $email, $school, $vehicleName, $startTime, $endTime, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
@@ -83,6 +100,10 @@ switch ($action) {
 	case "GetVehicles":
 		$school = $mysqli->real_escape_string($_POST["school"]);
 		$result = getVehicles($school, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "GetSchools":
+		$result = getSchools($mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
 	case "AddVehicle":
@@ -207,6 +228,11 @@ switch ($action) {
 
 		changeEmail($school, $newEmail, $mysqli);
 		echo(json_encode($returnValue, JSON_UNESCAPED_SLASHES));
+		break;
+	case "GetColors":
+		$school = $mysqli->real_escape_string($_POST["school"]);
+		$result = getColors($school, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
 }
 
