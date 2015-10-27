@@ -58,6 +58,31 @@ switch ($action) {
 		$result = reserveVehicle($school, $vehicleName, $owner, $startTime, $endTime, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
+	case "UpdateReservation":
+		$originalVehicleName = $mysqli->real_escape_string($_POST["originalVehicleName"]);
+		$originalOwner = $mysqli->real_escape_string($_POST["originalOwner"]);
+		$originalStartTime = $_POST["originalStartDate"];
+		$originalEndTime = $_POST["originalEndDate"];
+		
+		$newVehicleName = $mysqli->real_escape_string($_POST["newVehicleName"]);
+		$newOwner = $mysqli->real_escape_string($_POST["newOwner"]);
+		$newStartTime = $_POST["newStartDate"];
+		$newEndTime = $_POST["newEndDate"];
+		$keySet = $mysqli->real_escape_string($_POST["keySet"]);
+		$gasCard = $mysqli->real_escape_string($_POST["gasCard"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
+		if(!isValidTimeStamp($originalStartTime) || !isValidTimeStamp($originalEndTime) || !isValidTimeStamp($newStartTime) || !isValidTimeStamp($newEndTime)) {
+			error("times are not valid");
+		}
+		$result = updateReservation($school, $originalVehicleName, $originalOwner, $originalStartTime, $originalEndTime, $newVehicleName, $newOwner, $newStartTime, $newEndTime, $keySet, $gasCard, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
 	case "SubmitRequest":
 		$vehicleName = $mysqli->real_escape_string($_POST["vehicleName"]);
 		$owner = $mysqli->real_escape_string($_POST["owner"]);
@@ -102,6 +127,16 @@ switch ($action) {
 		$result = getVehicles($school, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
+	case "GetKeySets":
+		$school = $mysqli->real_escape_string($_POST["school"]);
+		$result = getKeySets($school, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "GetGasCards":
+		$school = $mysqli->real_escape_string($_POST["school"]);
+		$result = getGasCards($school, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
 	case "GetSchools":
 		$result = getSchools($mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
@@ -116,6 +151,68 @@ switch ($action) {
 		$school = getSchool($key, $mysqli);
 		
 		$result = addVehicle($school, $vehicleName, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "RemoveVehicle":
+		$vehicleName = $mysqli->real_escape_string($_POST["vehicleName"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
+		$result = removeVehicle($school, $vehicleName, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "AddKeySet":
+		$vehicleName = $mysqli->real_escape_string($_POST["vehicleName"]);
+		$keySetName = $mysqli->real_escape_string($_POST["keySetName"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
+		$result = addKeySet($school, $vehicleName, $keySetName, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "RemoveKeySet":
+		$vehicleName = $mysqli->real_escape_string($_POST["vehicleName"]);
+		$keySetName = $mysqli->real_escape_string($_POST["keySetName"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
+		$result = removeKeySet($school, $vehicleName, $keySetName, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "AddGasCard":
+		$gasCardName = $mysqli->real_escape_string($_POST["gasCardName"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
+		$result = addGasCard($school, $gasCardName, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "RemoveGasCard":
+		$gasCardName = $mysqli->real_escape_string($_POST["gasCardName"]);
+		
+		$key = $_POST["key"];
+		if(!preg_match($ck_key, $key)) {
+			error("key contains illegal characters");
+		}
+		$school = getSchool($key, $mysqli);
+		
+		$result = removeGasCard($school, $gasCardName, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
 	case "RemoveReservation":
@@ -134,18 +231,6 @@ switch ($action) {
 			error("times are not valid");
 		}
 		$result = removeReservation($school, $vehicleName, $owner, $startTime, $endTime, $mysqli);
-		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
-		break;
-	case "RemoveVehicle":
-		$vehicleName = $mysqli->real_escape_string($_POST["vehicleName"]);
-		
-		$key = $_POST["key"];
-		if(!preg_match($ck_key, $key)) {
-			error("key contains illegal characters");
-		}
-		$school = getSchool($key, $mysqli);
-		
-		$result = removeVehicle($school, $vehicleName, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
 		break;
 	case "SignIn":
@@ -233,6 +318,14 @@ switch ($action) {
 		$school = $mysqli->real_escape_string($_POST["school"]);
 		$result = getColors($school, $mysqli);
 		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "SubmitCode":
+		$code = $mysqli->real_escape_string($_POST["code"]);
+		$result = submitCode($code, $mysqli);
+		echo(json_encode($result, JSON_UNESCAPED_SLASHES));
+		break;
+	case "RequiresCode":
+		echo("false");
 		break;
 }
 

@@ -111,8 +111,23 @@ function getRequests($school, $mysqli, $startTime = -1) {
 function reserveVehicle($school, $vehicleName, $owner, $startTime, $endTime, $mysqli) {
 	if($endTime <= $startTime) error("End time is before start time.");
 	if(!vehicleExists($vehicleName, $school, $mysqli)) error("Vehicle does not exist (It is case sensitive).");
-	if(isVehicleReserved($school, $vehicleName, $startTime, $endTime, $mysqli)) error("This vehicle is already reserved.");
+	if(isVehicleReserved($school, $vehicleName, $startTime, $endTime, $mysqli)) {
+		error("This vehicle is already reserved.");
+		//print("THIS VEHICLE IS ALREADY RESERVED\xA");
+	}
 	$sql = "INSERT INTO `Reservations`(`vehicleName`, `owner`, `startDateTime`, `endDateTime`, `school`) VALUES ('$vehicleName','$owner', '$startTime', '$endTime', '$school')";
+	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
+function updateReservation($school, $originalVehicleName, $originalOwner, $originalStartTime, $originalEndTime, $newVehicleName, $newOwner, $newStartTime, $newEndTime, $keySet, $gasCard, $mysqli) {
+	if($newEndTime <= $newStartTime) error("End time is before start time.");
+	if(!vehicleExists($newVehicleName, $school, $mysqli)) error("Vehicle does not exist (It is case sensitive).");
+	if(isVehicleReservedExceptReservation($school, $vehicleName, $startP1, $endP1, $originalOwner, $originalVehicleName, $originalStartTime, $originalEndTime, $mysqli)) {
+		error("This vehicle is already reserved.");
+		//print("THIS VEHICLE IS ALREADY RESERVED\xA");
+	}
+	$sql = "UPDATE `Reservations` SET `vehicleName`= '$newVehicleName',`owner`= '$newOwner',`startDateTime`='$newStartTime',`endDateTime`='$newEndTime',`keySet`='$keySet',`gasCard`='$gasCard' WHERE `vehicleName` = '$originalVehicleName' AND `owner` = '$originalOwner' AND `startDateTime` = '$originalStartTime' AND `endDateTime` = '$originalEndTime'";
 	query($sql, $mysqli);
 	return ["success" => "true"];
 }
@@ -231,13 +246,51 @@ function addVehicle($school, $vehicleName, $mysqli) {
 	return ["success" => "true"];
 }
 
+function addKeySet($school, $vehicleName, $keySetName, $mysqli) {
+	$sql = "INSERT INTO `KeySets`(`school`, `vehicleName`, `keySetName`) VALUES ('$school', '$vehicleName', '$keySetName')";
+	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
+function removeKeySet($school, $vehicleName, $keySetName, $mysqli) {
+	$sql = "DELETE FROM `KeySets` WHERE `school` = '$school' AND `vehicleName` = '$vehicleName' AND `keySetName` = '$keySetName'";
+	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
+function addGasCard($school, $gasCardName, $mysqli) {
+	$sql = "INSERT INTO `GasCards`(`school`, `gasCardName`) VALUES ('$school', '$gasCardName')";
+	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
+function removeGasCard($school, $gasCardName, $mysqli) {
+	$sql = "DELETE FROM `KeySets` WHERE `school` = '$school' AND `gasCardName` = '$gasCardName'";
+	query($sql, $mysqli);
+	return ["success" => "true"];
+}
+
 function isVehicleReserved($school, $vehicleName, $startP1, $endP1, $mysqli) {
 	$sql = "SELECT * FROM `Reservations` WHERE `school` = '$school' AND `vehicleName` = '$vehicleName'";
 	$result = query($sql, $mysqli);
 	foreach($result as $reservation) {
 		$startP2 = $reservation["startDateTime"];
 		$endP2 = $reservation["endDateTime"];
-		if(($startP1 >= $startP2 && $startP1 <= $endP2) || ($startP2 >= $startP1 && $startP2 <= $endP1)) { //meeting exists
+		if(($startP1 > $startP2 && $startP1 < $endP2) || ($startP2 > $startP1 && $startP2 < $endP1)) { //meeting exists
+			return true;
+		}
+	}
+	return false;
+}
+
+function isVehicleReservedExceptReservation($school, $vehicleName, $startP1, $endP1, $exceptionOwner, $exceptionVehicleName, $exceptionStartTime, $exceptionEndTime, $mysqli) {
+	$sql = "SELECT * FROM `Reservations` WHERE `school` = '$school' AND `vehicleName` = '$vehicleName'";
+	$result = query($sql, $mysqli);
+	foreach($result as $reservation) {
+		if($reservation["owner"] == $exceptionOwner && $reservation["vehicleName"] == $exceptionVehicleName && $reservation["startDateTime"] == $exceptionStartTime && $reservation["endDateTime"] == $exceptionEndTime) continue;
+		$startP2 = $reservation["startDateTime"];
+		$endP2 = $reservation["endDateTime"];
+		if(($startP1 > $startP2 && $startP1 < $endP2) || ($startP2 > $startP1 && $startP2 < $endP1)) { //meeting exists
 			return true;
 		}
 	}
@@ -246,6 +299,16 @@ function isVehicleReserved($school, $vehicleName, $startP1, $endP1, $mysqli) {
 
 function getVehicles($school, $mysqli) {
 	$sql = "SELECT * FROM `Vehicles` WHERE `school` = '$school'";
+	return query($sql, $mysqli);
+}
+
+function getKeySets($school, $mysqli) {
+	$sql = "SELECT * FROM `KeySets` WHERE `school` = '$school'";
+	return query($sql, $mysqli);
+}
+
+function getGasCards($school, $mysqli) {
+	$sql = "SELECT * FROM `GasCards` WHERE `school` = '$school'";
 	return query($sql, $mysqli);
 }
 
@@ -263,6 +326,20 @@ function vehicleExists($vehicleName, $school, $mysqli) {
 	$sql = "SELECT * FROM `Vehicles` WHERE `school` = '$school' AND `vehicleName` = '$vehicleName'";
 	$result = query($sql, $mysqli);
 	return count($result) > 0;
+}
+
+function submitCode($code, $mysqli) {
+	$sql = "SELECT * FROM `Codes` WHERE `code` = '$code'";
+	$result = query($sql, $mysqli);
+	if(count($result) > 0) {
+		$row = $result[0];
+		$newUses = $row["numUses"] + 1;
+		$sql = "UPDATE `Codes` SET `numUses` = '$newUses' WHERE `code` = '$code'";
+		query($sql, $mysqli);
+		die("success");
+	} else {
+		error("Code does not exist.");
+	}
 }
 
 //a generic query, returns an associative array
